@@ -1,0 +1,19 @@
+2026-10-24 12:13:37,120 | INFO | Fetched https://internshala.com/internships/
+2026-10-24 12:13:46,980 | INFO | Fetched https://internshala.com/internships/
+2026-10-24 12:13:51,079 | INFO | Fetched https://internshala.com/internships/page-2/
+2026-10-24 12:13:53,066 | INFO | Fetched https://internshala.com/internships/page-3/
+2026-10-24 12:13:55,554 | INFO | Fetched https://internshala.com/internships/page-4/
+2026-10-24 12:13:58,138 | INFO | Fetched https://internshala.com/internships/page-5/
+2026-10-24 12:13:58,236 | INFO | Pagination collected 0 records
+2026-10-24 12:13:58,238 | INFO | Saved JSON: C:\Users\Shivansh\OneDrive\Desktop\InternHunt\backend\scrapper\output\results.json
+2026-10-24 12:13:58,238 | WARNING | No data to export
+2026-10-24 12:13:58,238 | INFO | Scraping completed: 0 records
+2026-10-24 12:14:48,012 | INFO | Fetched https://internshala.com/internships/
+2026-10-24 12:14:50,078 | INFO | Fetched https://internshala.com/internships/page-2/
+2026-10-24 12:14:52,350 | INFO | Fetched https://internshala.com/internships/page-3/
+2026-10-24 12:14:54,379 | INFO | Fetched https://internshala.com/internships/page-4/
+2026-10-24 12:14:56,823 | INFO | Fetched https://internshala.com/internships/page-5/
+2026-10-24 12:14:56,922 | INFO | Pagination collected 0 records
+2026-10-24 12:14:56,923 | INFO | Saved JSON: C:\Users\Shivansh\OneDrive\Desktop\InternHunt\backend\scrapper\output\results.json
+2026-10-24 12:14:56,924 | WARNING | No data to export
+2026-10-24 12:14:56,924 | INFO | Scraping completed: 0 records

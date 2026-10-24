@@ -1481,53 +1481,74 @@ async function loadMatchingInternships() {
 
     await uploadResume(file);
   });
-  function runResumeAnalysis() {
-    DOM.analysisLoadingState.classList.remove('hidden');
-    DOM.btnAnalyzeResume.disabled = true;
+  
 
-    const statusTexts = [
-      'Parsing PDF syntax and document AST...',
-      'Extracting verified technical competencies & projects...',
-      'Cross-referencing requirements across 2026/2027 job database...'
-    ];
 
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      if (step < statusTexts.length) {
-        DOM.analysisStatusText.textContent = statusTexts[step];
-      }
-    }, 600);
+  
+async function runResumeAnalysis() {
+  DOM.analysisLoadingState.classList.remove("hidden");
+  DOM.btnAnalyzeResume.disabled = true;
 
-    setTimeout(() => {
-      clearInterval(interval);
-      DOM.analysisLoadingState.classList.add('hidden');
-      DOM.btnAnalyzeResume.disabled = false;
-
-      state.user.resumeAnalyzed = true;
-      state.user.atsScore = Math.floor(Math.random() * 6) + 91;
-
-      const potentialSkills = ['Docker', 'TypeScript', 'GraphQL', 'AWS'];
-      potentialSkills.forEach(newSkill => {
-        if (!state.user.skills.includes(newSkill) && Math.random() > 0.4) {
-          state.user.skills.push(newSkill);
-        }
-      });
-
-      updateUserProfileDisplays();
-      renderOpportunities();
-      renderDashboardTopPicks();
-
-      DOM.resumeStatusPill.textContent = 'Analyzed';
-      DOM.resumeStatusPill.classList.add('analyzed');
-
-      const now = new Date();
-      DOM.lastAnalyzedTimestamp.textContent = `Analyzed at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} with InternHunt AI Engine v4.2`;
-
-      DOM.profileOverviewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      showToast('Resume analysis complete! 9+ verified technical skills extracted.', 'success');
-    }, 2000);
+  if (DOM.analysisStatusText) {
+    DOM.analysisStatusText.textContent =
+      "Reading your saved resume and extracting skills...";
   }
+
+  try {
+    const response = await fetch(
+      "http://localhost/projects/internhunt/php/analyze_resume.php",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json"
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Resume analysis failed.");
+    }
+
+    // Replace mock skills with the skills returned by the database.
+    state.user.skills = Array.isArray(data.skills) ? data.skills : [];
+
+    state.user.resumeAnalyzed = true;
+
+    updateUserProfileDisplays();
+    renderOpportunities();
+    renderDashboardTopPicks();
+
+    if (DOM.resumeStatusPill) {
+      DOM.resumeStatusPill.textContent = "Analyzed";
+      DOM.resumeStatusPill.classList.add("analyzed");
+    }
+
+    if (DOM.lastAnalyzedTimestamp) {
+      DOM.lastAnalyzedTimestamp.textContent =
+        `Resume analyzed at ${new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })}`;
+    }
+
+    showToast(
+      `Analysis complete. Found ${data.skills_found} skills and added ${data.skills_added} new skills.`,
+      "success"
+    );
+
+  } catch (error) {
+    console.error("Resume analysis error:", error);
+
+    showToast(error.message || "Resume analysis failed.", "error");
+
+  } finally {
+    DOM.analysisLoadingState.classList.add("hidden");
+    DOM.btnAnalyzeResume.disabled = false;
+  }
+}
 
 
   async function uploadResume(file) {

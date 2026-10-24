@@ -724,138 +724,226 @@
     "http://localhost/projects/internhunt/php/matching_internships.php";
 
 
-  async function loadMatchingInternships() {
-    const container = DOM.opportunitiesGrid;
-    if (!container) return;
 
-    container.innerHTML = "<p>Loading matching opportunities...</p>";
 
-    try {
-      const response = await fetch(
-        "http://localhost/projects/internhunt/php/matching_internships.php",
-        {
-          method: "GET",
-          credentials: "include",
-          headers: { Accept: "application/json" }
-        }
+
+async function loadMatchingInternships() {
+  const container = DOM.opportunitiesGrid;
+  if (!container) return;
+
+  container.innerHTML = "<p>Loading matching opportunities...</p>";
+
+  try {
+    const response = await fetch(
+      "http://localhost/projects/internhunt/php/matching_internships.php",
+      {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || data.message || "Failed to load opportunities."
       );
+    }
 
-      const data = await response.json();
+    const opportunities = data.matches || data.internships || [];
+    const rawUserSkills = data.user_skills ?? data.userSkills ?? [];
 
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "Failed to load opportunities.");
+    const userSkills = (
+      Array.isArray(rawUserSkills)
+        ? rawUserSkills
+        : typeof rawUserSkills === "string"
+          ? (() => {
+              try {
+                const parsed = JSON.parse(rawUserSkills);
+                return Array.isArray(parsed)
+                  ? parsed
+                  : rawUserSkills.split(",");
+              } catch {
+                return rawUserSkills.split(",");
+              }
+            })()
+          : []
+    )
+      .map(skill => String(skill).trim().toLowerCase())
+      .filter(Boolean);
+
+    const mappedOpportunities = opportunities.map((item, index) => {
+      let requiredSkills =
+        item.required_skills ?? item.requiredSkills ?? [];
+
+      if (typeof requiredSkills === "string") {
+        try {
+          requiredSkills = JSON.parse(requiredSkills);
+        } catch {
+          requiredSkills = requiredSkills.split(",");
+        }
       }
 
-      const opportunities = data.matches || data.internships || [];
+      if (!Array.isArray(requiredSkills)) {
+        requiredSkills = [];
+      }
 
-      const mappedOpportunities = opportunities.map((item, index) => {
-        let requiredSkills =
-          item.required_skills ?? item.requiredSkills ?? [];
+      requiredSkills = [
+        ...new Set(
+          requiredSkills
+            .map(skill => String(skill).trim().toLowerCase())
+            .filter(Boolean)
+        )
+      ];
 
-        if (typeof requiredSkills === "string") {
-          try {
-            requiredSkills = JSON.parse(requiredSkills);
-          } catch {
-            requiredSkills = requiredSkills.split(",");
-          }
-        }
+      const matchedSkills = requiredSkills.filter(skill =>
+        userSkills.includes(skill)
+      );
 
-        if (!Array.isArray(requiredSkills)) {
-          requiredSkills = [];
-        }
-
-        const company = item.company ?? item.company_name ?? "Company";
-        const title =
-          item.title ?? item.role ?? item.job_title ?? "Opportunity";
-
-        const type = String(item.type ?? "internship").toLowerCase();
-        const category = type === "hackathon" ? "hackathon" : "internship";
-
-        const deadline = item.deadline ?? item.deadline_date ?? null;
-        const parsedDeadline = deadline ? new Date(deadline) : null;
-
-        const validDeadline =
-          parsedDeadline && !Number.isNaN(parsedDeadline.getTime());
-
-        const daysLeft = validDeadline
-          ? Math.max(
-            0,
-            Math.ceil((parsedDeadline.getTime() - Date.now()) / 86400000)
+      const calculatedMatch = requiredSkills.length > 0
+        ? Math.round(
+            (matchedSkills.length / requiredSkills.length) * 100
           )
-          : 30;
+        : 0;
 
-        return {
-          id: `db-${item.id ?? index}`,
-          originalId: item.id,
-          company,
-          logoInitial: company.substring(0, 2).toUpperCase(),
-          logoBg: category === "hackathon"
-            ? "linear-gradient(135deg, #ea580c, #db2777)"
-            : "linear-gradient(135deg, #2563eb, #7c3aed)",
-          category,
-          domain: item.domain ?? "all",
-          role: title,
-          location: item.location ?? "Not specified",
-          stipend: category === "hackathon"
-            ? (item.stipend ?? item.prize_pool ?? "See details")
-            : (item.stipend ?? item.salary ?? "Not specified"),
-          deadlineDate: validDeadline
-            ? parsedDeadline.toISOString().slice(0, 10)
-            : "",
-          deadlineDisplay: validDeadline
-            ? parsedDeadline.toLocaleDateString("en-IN", {
+      const apiMatch = Number(
+        item.match_percentage ?? item.match_score
+      );
+
+      const baseScore =
+        Number.isFinite(apiMatch) &&
+        item.match_percentage != null &&
+        item.match_percentage !== ""
+          ? apiMatch
+          : calculatedMatch;
+
+      const company = item.company ?? item.company_name ?? "Company";
+      const title =
+        item.title ?? item.role ?? item.job_title ?? "Opportunity";
+
+      const type = String(item.type ?? "internship").toLowerCase();
+      const category = type === "hackathon" ? "hackathon" : "internship";
+
+      const deadline = item.deadline ?? item.deadline_date ?? null;
+      const parsedDeadline = deadline ? new Date(deadline) : null;
+
+      const validDeadline =
+        parsedDeadline && !Number.isNaN(parsedDeadline.getTime());
+
+      const daysLeft = validDeadline
+        ? Math.max(
+            0,
+            Math.ceil(
+              (parsedDeadline.getTime() - Date.now()) / 86400000
+            )
+          )
+        : 30;
+
+      return {
+        id: `db-${item.id ?? index}`,
+        originalId: item.id,
+        company,
+        logoInitial: company.substring(0, 2).toUpperCase(),
+        logoBg: category === "hackathon"
+          ? "linear-gradient(135deg, #ea580c, #db2777)"
+          : "linear-gradient(135deg, #2563eb, #7c3aed)",
+        category,
+        domain: item.domain ?? "all",
+        role: title,
+        location: item.location ?? "Not specified",
+        stipend: category === "hackathon"
+          ? (item.stipend ?? item.prize_pool ?? "See details")
+          : (item.stipend ?? item.salary ?? "Not specified"),
+        deadlineDate: validDeadline
+          ? parsedDeadline.toISOString().slice(0, 10)
+          : "",
+        deadlineDisplay: validDeadline
+          ? parsedDeadline.toLocaleDateString("en-IN", {
               day: "2-digit",
               month: "short",
               year: "numeric"
             })
-            : "Not specified",
-          daysLeft,
-          requiredSkills,
-          baseScore: Number(item.match_percentage ?? item.match_score ?? 0),
-          description: item.description ?? "",
-          interviewFormat: item.interview_format ?? "",
-          interviewQuestions: [],
-          matchedSkills: item.matched_skills ?? [],
-          missingSkills: item.missing_skills ?? [],
-          register_url: item.register_url ?? '#'
-        };
-      });
+          : "Not specified",
+        daysLeft,
+        requiredSkills,
+        baseScore,
+        description: item.description ?? "",
+        interviewFormat: item.interview_format ?? "",
+        interviewQuestions: [],
+        matchedSkills: item.matched_skills ?? matchedSkills,
+        missingSkills: item.missing_skills ?? requiredSkills.filter(
+          skill => !userSkills.includes(skill)
+        ),
+        register_url: item.register_url ?? "#"
+      };
+    });
 
-      // Display real database results, including internships and hackathons.
-      state.opportunities = mappedOpportunities;
+    state.opportunities = mappedOpportunities;
 
-      renderOpportunities();
-      renderDashboardTopPicks();
+    // Update hero percentage and circular SVG progress.
+    const heroMatchPct = document.getElementById("hero-match-pct");
+    const heroMatchCircle = document.getElementById("hero-match-circle");
 
-      const internshipCount = mappedOpportunities.filter(
-        item => item.category === "internship"
-      ).length;
+    const overallMatch = mappedOpportunities.length > 0
+      ? Math.round(
+          mappedOpportunities.reduce(
+            (total, item) => total + item.baseScore,
+            0
+          ) / mappedOpportunities.length
+        )
+      : 0;
 
-      const hackathonCount = mappedOpportunities.filter(
-        item => item.category === "hackathon"
-      ).length;
+    const percentage = Math.max(0, Math.min(100, overallMatch));
 
-      showToast(
-        `Loaded ${internshipCount} internships and ${hackathonCount} hackathons.`,
-        "success"
-      );
-
-    } catch (error) {
-      console.error("Matching opportunities error:", error);
-
-      container.innerHTML = "";
-
-      if (DOM.emptyState) {
-        DOM.emptyState.classList.remove("hidden");
-      }
-
-      if (DOM.resultsCountText) {
-        DOM.resultsCountText.textContent = "Unable to load opportunities.";
-      }
-
-      showToast(error.message || "Unable to load opportunities.", "error");
+    if (heroMatchPct) {
+      heroMatchPct.textContent = `${percentage}%`;
     }
+
+    if (heroMatchCircle) {
+      heroMatchCircle.setAttribute(
+        "stroke-dasharray",
+        `${percentage}, 100`
+      );
+    }
+
+    renderOpportunities();
+    renderDashboardTopPicks();
+
+    const internshipCount = mappedOpportunities.filter(
+      item => item.category === "internship"
+    ).length;
+
+    const hackathonCount = mappedOpportunities.filter(
+      item => item.category === "hackathon"
+    ).length;
+
+    showToast(
+      `Loaded ${internshipCount} internships and ${hackathonCount} hackathons.`,
+      "success"
+    );
+
+  } catch (error) {
+    console.error("Matching opportunities error:", error);
+
+    container.innerHTML = "";
+
+    if (DOM.emptyState) {
+      DOM.emptyState.classList.remove("hidden");
+    }
+
+    if (DOM.resultsCountText) {
+      DOM.resultsCountText.textContent =
+        "Unable to load opportunities.";
+    }
+
+    showToast(
+      error.message || "Unable to load opportunities.",
+      "error"
+    );
   }
+}
+
 
 
 
